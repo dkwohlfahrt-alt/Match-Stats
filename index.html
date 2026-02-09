@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Match Stats Tracker</title>
+<title>Match Stats</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="./manifest.json">
@@ -11,20 +11,20 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #f4f4f4;
+  background: #f2f2f2;
   margin: 0;
-  padding: 12px;
+  padding: 10px;
 }
 
 h2, h3 {
   text-align: center;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .section {
-  background: white;
-  padding: 12px;
-  margin-bottom: 14px;
+  background: #fff;
+  padding: 10px;
+  margin-bottom: 12px;
   border-radius: 8px;
 }
 
@@ -34,15 +34,17 @@ input, button, select {
 }
 
 button {
-  min-height: 48px;
-  width: 100%;
+  min-height: 46px;
   margin-top: 6px;
+}
+
+.full {
+  width: 100%;
 }
 
 .clock {
   font-size: 32px;
   text-align: center;
-  margin: 10px 0;
 }
 
 .badge {
@@ -59,12 +61,18 @@ table {
 
 th, td {
   border: 1px solid #ddd;
-  padding: 6px;
+  padding: 4px;
   text-align: center;
 }
 
 th {
   background: #eee;
+}
+
+.actions button {
+  font-size: 14px;
+  padding: 6px;
+  margin: 2px;
 }
 </style>
 </head>
@@ -74,33 +82,37 @@ th {
 <h2>Match Stats</h2>
 
 <div class="section">
-  <select id="matchSelector"></select>
-  <button onclick="newMatch()">➕ New Match</button>
+  <select id="matchSelector" class="full"></select>
+  <button class="full" onclick="newMatch()">➕ New Match</button>
 </div>
 
 <div class="section">
-  <input id="myTeam" placeholder="My Team">
-  <input id="opponent" placeholder="Opponent">
+  <input id="myTeam" class="full" placeholder="My Team">
+  <input id="opponent" class="full" placeholder="Opponent">
 </div>
 
 <div class="section">
   <div class="badge" id="phaseLabel">PRE MATCH</div>
   <div class="clock" id="clock">00:00</div>
-  <button id="phaseButton">Start First Half</button>
+  <button id="phaseButton" class="full">Start First Half</button>
 </div>
 
 <div class="section">
   <h3>Lineup</h3>
-  <input id="playerName" placeholder="Player name">
-  <button onclick="addPlayer()">Add Player</button>
+  <input id="playerName" class="full" placeholder="Player name">
+  <button class="full" onclick="addPlayer()">Add Player</button>
 
   <table>
     <thead>
       <tr>
         <th>Player</th>
         <th>Status</th>
-        <th>Minutes</th>
-        <th>Action</th>
+        <th>Min</th>
+        <th>G</th>
+        <th>A</th>
+        <th>S</th>
+        <th>T</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody id="lineupBody"></tbody>
@@ -121,11 +133,11 @@ th {
 </div>
 
 <div class="section">
-  <button onclick="exportMinutes()">📤 Export Minutes CSV</button>
+  <button class="full" onclick="exportCSV()">📤 Export CSV</button>
 </div>
 
 <script>
-/* ---------- STORAGE STRUCTURE ---------- */
+/* ---------- STORAGE ---------- */
 
 let matches = JSON.parse(localStorage.getItem("matches") || "[]");
 let currentMatchId = localStorage.getItem("currentMatchId");
@@ -137,13 +149,13 @@ function createMatch() {
     id: Date.now(),
     info: { myTeam: "", opponent: "" },
     phase: "PRE_MATCH",
-    secondsElapsed: 0,
+    seconds: 0,
     players: [],
     timeline: []
   };
 }
 
-/* ---------- ACTIVE MATCH ---------- */
+/* ---------- STATE ---------- */
 
 let match = null;
 let timer = null;
@@ -161,35 +173,31 @@ const myTeamInput = document.getElementById("myTeam");
 const opponentInput = document.getElementById("opponent");
 const playerNameInput = document.getElementById("playerName");
 
-/* ---------- MATCH SELECTION ---------- */
+/* ---------- MATCH SELECTOR ---------- */
 
-function refreshMatchSelector() {
+function refreshSelector() {
   matchSelector.innerHTML = "";
   matches.forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    opt.textContent = `${m.info.myTeam || "Match"} vs ${m.info.opponent || ""}`;
-    matchSelector.appendChild(opt);
+    const o = document.createElement("option");
+    o.value = m.id;
+    o.textContent = `${m.info.myTeam || "Match"} vs ${m.info.opponent || ""}`;
+    matchSelector.appendChild(o);
   });
   matchSelector.value = currentMatchId;
 }
 
-matchSelector.onchange = () => {
-  loadMatch(matchSelector.value);
-};
+matchSelector.onchange = () => loadMatch(matchSelector.value);
 
-/* ---------- NEW MATCH ---------- */
+/* ---------- MATCH CONTROL ---------- */
 
 function newMatch() {
-  if (match && !confirm("Start a new match? Current match will be saved.")) return;
+  if (match && !confirm("Start a new match? Current match is saved.")) return;
   match = createMatch();
   matches.push(match);
   currentMatchId = match.id;
   persist();
   loadMatch(match.id);
 }
-
-/* ---------- LOAD ---------- */
 
 function loadMatch(id) {
   match = matches.find(m => m.id == id);
@@ -207,7 +215,7 @@ function loadMatch(id) {
   renderTimeline();
 
   if (timer) clearInterval(timer);
-  if (match.phase === "FIRST_HALF" || match.phase === "SECOND_HALF") {
+  if (["FIRST_HALF", "SECOND_HALF"].includes(match.phase)) {
     timer = setInterval(tick, 1000);
   }
 }
@@ -215,18 +223,18 @@ function loadMatch(id) {
 /* ---------- CLOCK ---------- */
 
 function tick() {
-  match.secondsElapsed++;
+  match.seconds++;
   updateClock();
   persist();
 }
 
 function updateClock() {
-  const m = Math.floor(match.secondsElapsed / 60);
-  const s = match.secondsElapsed % 60;
-  clockEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const m = Math.floor(match.seconds / 60);
+  const s = match.seconds % 60;
+  clockEl.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
-/* ---------- PHASE CONTROL ---------- */
+/* ---------- PHASES ---------- */
 
 phaseButton.onclick = () => {
   if (match.phase === "PRE_MATCH") startHalf("FIRST_HALF");
@@ -237,20 +245,18 @@ phaseButton.onclick = () => {
 
 function startHalf(phase) {
   match.phase = phase;
-  match.players.forEach(p => {
-    if (p.on) p.lastOn = match.secondsElapsed;
-  });
+  match.players.forEach(p => { if (p.on) p.lastOn = match.seconds; });
   timer = setInterval(tick, 1000);
   log(`${phase.replace("_"," ")} started`);
   updatePhaseUI();
   persist();
 }
 
-function endHalf(nextPhase) {
+function endHalf(next) {
   closeMinutes();
   clearInterval(timer);
-  match.phase = nextPhase;
-  log(`${nextPhase.replace("_"," ")}`);
+  match.phase = next;
+  log(next.replace("_"," "));
   updatePhaseUI();
   persist();
 }
@@ -276,7 +282,8 @@ function addPlayer() {
     name,
     on: true,
     minutes: 0,
-    lastOn: match.secondsElapsed
+    lastOn: match.seconds,
+    stats: { goals: 0, assists: 0, shots: 0, tackles: 0 }
   });
 
   log(`${name} added`);
@@ -288,14 +295,21 @@ function addPlayer() {
 function togglePlayer(i) {
   const p = match.players[i];
   if (p.on) {
-    p.minutes += Math.floor((match.secondsElapsed - p.lastOn) / 60);
+    p.minutes += Math.floor((match.seconds - p.lastOn) / 60);
     p.on = false;
-    log(`${p.name} subbed off`);
+    log(`${p.name} off`);
   } else {
     p.on = true;
-    p.lastOn = match.secondsElapsed;
-    log(`${p.name} subbed on`);
+    p.lastOn = match.seconds;
+    log(`${p.name} on`);
   }
+  renderLineup();
+  persist();
+}
+
+function addStat(i, stat) {
+  match.players[i].stats[stat]++;
+  log(`${match.players[i].name} ${stat}`);
   renderLineup();
   persist();
 }
@@ -303,8 +317,8 @@ function togglePlayer(i) {
 function closeMinutes() {
   match.players.forEach(p => {
     if (p.on) {
-      p.minutes += Math.floor((match.secondsElapsed - p.lastOn) / 60);
-      p.lastOn = match.secondsElapsed;
+      p.minutes += Math.floor((match.seconds - p.lastOn) / 60);
+      p.lastOn = match.seconds;
     }
   });
 }
@@ -319,8 +333,17 @@ function renderLineup() {
       <td>${p.name}</td>
       <td>${p.on ? "On" : "Off"}</td>
       <td>${p.minutes}</td>
-      <td><button onclick="togglePlayer(${i})">${p.on ? "Sub Off" : "Sub On"}</button></td>
-    `;
+      <td>${p.stats.goals}</td>
+      <td>${p.stats.assists}</td>
+      <td>${p.stats.shots}</td>
+      <td>${p.stats.tackles}</td>
+      <td class="actions">
+        <button onclick="togglePlayer(${i})">${p.on ? "Off" : "On"}</button>
+        <button onclick="addStat(${i},'goals')">⚽</button>
+        <button onclick="addStat(${i},'assists')">🅰️</button>
+        <button onclick="addStat(${i},'shots')">🎯</button>
+        <button onclick="addStat(${i},'tackles')">🛡️</button>
+      </td>`;
     lineupBody.appendChild(r);
   });
 }
@@ -343,14 +366,16 @@ function renderTimeline() {
 
 /* ---------- EXPORT ---------- */
 
-function exportMinutes() {
-  let csv = "Player,Minutes\n";
-  match.players.forEach(p => csv += `${p.name},${p.minutes}\n`);
+function exportCSV() {
+  let csv = "Player,Minutes,Goals,Assists,Shots,Tackles\n";
+  match.players.forEach(p => {
+    csv += `${p.name},${p.minutes},${p.stats.goals},${p.stats.assists},${p.stats.shots},${p.stats.tackles}\n`;
+  });
 
   const blob = new Blob([csv], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `${match.info.myTeam || "match"}_minutes.csv`;
+  a.download = `${match.info.myTeam || "match"}_stats.csv`;
   a.click();
 }
 
@@ -359,19 +384,15 @@ function exportMinutes() {
 function persist() {
   match.info.myTeam = myTeamInput.value;
   match.info.opponent = opponentInput.value;
-
   localStorage.setItem("matches", JSON.stringify(matches));
   localStorage.setItem("currentMatchId", currentMatchId);
 }
 
 /* ---------- INIT ---------- */
 
-if (!matches.length) {
-  newMatch();
-} else {
-  loadMatch(currentMatchId || matches[0].id);
-}
-refreshMatchSelector();
+if (!matches.length) newMatch();
+else loadMatch(currentMatchId || matches[0].id);
+refreshSelector();
 
 /* ---------- SERVICE WORKER ---------- */
 if ("serviceWorker" in navigator) {
