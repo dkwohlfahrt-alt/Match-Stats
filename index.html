@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#ffffff">
     <meta charset="UTF-8">
     <title>Match Stats Tracker</title>
@@ -649,8 +649,7 @@ function updateTimeline() {
         exportButton.addEventListener('click', exportCSV);
     });
     if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("./service-worker.js")
+ navigator.serviceWorker.register("./service-worker.js")
     .then(() => console.log("Service Worker registered"))
     .catch(err => console.error("Service Worker failed", err));
  }
