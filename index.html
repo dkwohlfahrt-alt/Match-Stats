@@ -1,663 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#ffffff">
-    <meta charset="UTF-8">
-    <title>Match Stats Tracker</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 10px;
-        }
+  <meta charset="UTF-8">
+  <title>Match Stats Tracker</title>
 
-        /* Match details input */
-        .match-details {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        .match-details label {
-            font-size: 14px;
-            margin-right: 10px;
-        }
-
-        .match-details input {
-            padding: 5px;
-            margin-right: 10px;
-        }
-
-        /* Button row */
-        .top-buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .top-buttons button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 0 5px;
-            cursor: pointer;
-        }
-
-
-    /* Clock styling */
-    #clock {
-        font-size: 24px;
-        margin-top: 10px;
-        text-align: center;
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 12px;
+      background: #fafafa;
     }
 
-        /* Table layout */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
 
-        table th, table td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: center;
-        }
+    input, button {
+      font-size: 16px;
+      padding: 10px;
+    }
 
-        table th {
-            background-color: #f2f2f2;
-        }
+    button {
+      min-height: 48px;
+      cursor: pointer;
+    }
 
-        table caption {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
+    .section {
+      background: white;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
 
-        .button-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .button-container button {
-            padding: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            width: 40px;
-        }
-
-/* Mobile Responsiveness */
-@media screen and (max-width: 768px) {
-    /* Match details */
     .match-details {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .match-details label {
-        font-size: 12px;
-        margin-right: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
 
     .match-details input {
-        width: 100%;
-        margin-bottom: 10px;
+      width: 100%;
     }
 
-    /* Button row */
-    .top-buttons {
-        flex-direction: column;
-        gap: 10px;
-        align-items: center;
+    .clock {
+      text-align: center;
+      font-size: 32px;
+      margin: 10px 0;
     }
 
-    .top-buttons button {
-        padding: 10px 15px;
-        font-size: 14px;
-        width: 100%;
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
-    /* Clock styling */
-    #clock {
-        font-size: 20px;
-        margin-top: 15px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
     }
 
-    /* Button container for stats */
-    .button-container {
-        flex-direction: column;
-        align-items: center;
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
     }
 
-    .button-container button {
-        margin: 5px 0;
-        width: 40px;
-        font-size: 12px;
-    }
-}
-
-/* For very small screens (portrait mobile devices) */
-@media screen and (max-width: 480px) {
-    /* Reduce font size and margins for even smaller screens */
-    .match-details label {
-        font-size: 10px;
+    th {
+      background: #f2f2f2;
     }
 
-    .match-details input {
-        font-size: 12px;
+    .stat-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .top-buttons button {
-        font-size: 12px;
+    .timeline table {
+      font-size: 13px;
     }
 
-    #clock {
-        font-size: 18px;
+    @media (max-width: 600px) {
+      .match-details {
+        grid-template-columns: 1fr;
+      }
     }
-
-    .button-container button {
-        width: 35px;
-        font-size: 10px;
-    }
-
-      /* Timeline Section */
-        #timeline {
-            margin-top: 20px;
-        }
-
-        #timeline table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        #timeline th, #timeline td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-
-        #timeline th {
-            background-color: #f2f2f2;
-        }
-
-    </style>
+  </style>
 </head>
+
 <body>
 
-    <!-- Match Details Input -->
-    <div class="match-details">
-	<div class="match-details">
-        <div>
-            <label for="myTeamInput">My Team: </label>
-            <input type="text" id="myTeamInput" placeholder="Enter My Team" />
-        </div>
-        <div>
-            <label for="opponentInput">Opponent: </label>
-            <input type="text" id="opponentInput" placeholder="Enter Opponent" />
-        </div>
-        
-	<label for="matchDate">Date:</label>
-        <input type="date" id="matchDate">
-        <label for="matchTime">Kickoff:</label>
-        <input type="time" id="matchTime">
-        <label for="venue">Venue:</label>
-        <input type="text" id="venue" placeholder="Venue">
-        <label for="matchType">Type:</label>
-        <input type="text" id="matchType" placeholder="Friendly/League">
-        
-    </div>
-	<div class="clock-container">
-        <button id="startStopButton">Start Match</button>
-        <div id="clock">00:00</div>
-    </div>
-    <!-- Control Buttons (Reset, Start/Stop, Export) -->
-    <div class="top-buttons">
-        <button id="resetButton">Reset</button>
-        
-        <button id="exportButton">Export Stats</button>
-    </div>
+<h2>Match Stats</h2>
 
+<div class="section match-details">
+  <input id="myTeam" placeholder="My Team">
+  <input id="opponent" placeholder="Opponent">
+  <input id="date" type="date">
+  <input id="venue" placeholder="Venue">
+</div>
 
-    <!-- Stats Summary Table -->
-    <table>
-        <caption>Match Stats Summary</caption>
-        <thead>
-            <tr>
-                <th>My Counter</th>
-                <th>My Team</th>
-                <th>Category</th>
-                <th>Opponent</th>
-                <th>Their Counter</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Stats categories -->
-            <tr>
-                 <td class="button-container">
-                    <button class="decrease" data-stat="goalsMyTeam">-1</button>
-                    <span id="goalsMyTeamCounter">0</span>
-                    <button class="increase" data-stat="goalsMyTeam">+1</button>
-                </td>
-                <td><span id="goalsMyTeamValue">0</span></td>
-                <td>Goal</td>
-                <td><span id="goalsOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="goalsOpponent">-1</button>
-                    <span id="goalsOpponentCounter">0</span>
-                    <button class="increase" data-stat="goalsOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="clearChancesMyTeam">-1</button>
-                    <span id="clearChancesMyTeamCounter">0</span>
-                    <button class="increase" data-stat="clearChancesMyTeam">+1</button>
-                </td>
-                <td><span id="clearChancesMyTeamValue">0</span></td>
-                <td>Clear Chance</td>
-                <td><span id="clearChancesOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="clearChancesOpponent">-1</button>
-                    <span id="clearChancesOpponentCounter">0</span>
-                    <button class="increase" data-stat="clearChancesOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="halfChancesMyTeam">-1</button>
-                    <span id="halfChancesMyTeamCounter">0</span>
-                    <button class="increase" data-stat="halfChancesMyTeam">+1</button>
-                </td>
-                <td><span id="halfChancesMyTeamValue">0</span></td>
-                <td>Half Chance</td>
-                <td><span id="halfChancesOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="halfChancesOpponent">-1</button>
-                    <span id="halfChancesOpponentCounter">0</span>
-                    <button class="increase" data-stat="halfChancesOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="shotsMyTeam">-1</button>
-                    <span id="shotsMyTeamCounter">0</span>
-                    <button class="increase" data-stat="shotsMyTeam">+1</button>
-                </td>
-                <td><span id="shotsMyTeamValue">0</span></td>
-                <td>Shot</td>
-                <td><span id="shotsOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="shotsOpponent">-1</button>
-                    <span id="shotsOpponentCounter">0</span>
-                    <button class="increase" data-stat="shotsOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="onTargetMyTeam">-1</button>
-                    <span id="onTargetMyTeamCounter">0</span>
-                    <button class="increase" data-stat="onTargetMyTeam">+1</button>
-                </td>
-                <td><span id="onTargetMyTeamValue">0</span></td>
-                <td>On Target</td>
-                <td><span id="onTargetOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="onTargetOpponent">-1</button>
-                    <span id="onTargetOpponentCounter">0</span>
-                    <button class="increase" data-stat="onTargetOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="turnoversWonMyTeam">-1</button>
-                    <span id="turnoversWonMyTeamCounter">0</span>
-                    <button class="increase" data-stat="turnoversWonMyTeam">+1</button>
-                </td>
-                <td><span id="turnoversWonMyTeamValue">0</span></td>
-                <td>Turnover Won</td>
-                <td><span id="turnoversWonOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="turnoversWonOpponent">-1</button>
-                    <span id="turnoversWonOpponentCounter">0</span>
-                    <button class="increase" data-stat="turnoversWonOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="finalThirdTurnoversMyTeam">-1</button>
-                    <span id="finalThirdTurnoversMyTeamCounter">0</span>
-                    <button class="increase" data-stat="finalThirdTurnoversMyTeam">+1</button>
-                </td>
-                <td><span id="finalThirdTurnoversMyTeamValue">0</span></td>
-                <td>Attacking Third Turnover</td>
-                <td><span id="finalThirdTurnoversOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="finalThirdTurnoversOpponent">-1</button>
-                    <span id="finalThirdTurnoversOpponentCounter">0</span>
-                    <button class="increase" data-stat="finalThirdTurnoversOpponent">+1</button>
-                </td>
-            </tr>
-	<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="middleThirdTurnoversMyTeam">-1</button>
-                    <span id="middleThirdTurnoversMyTeamCounter">0</span>
-                    <button class="increase" data-stat="middleThirdTurnoversMyTeam">+1</button>
-                </td>
-                <td><span id="middleThirdTurnoversMyTeamValue">0</span></td>
-                <td>Middle Third Turnover</td>
-                <td><span id="middleThirdTurnoversOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="middleThirdTurnoversOpponent">-1</button>
-                    <span id="middleThirdTurnoversOpponentCounter">0</span>
-                    <button class="increase" data-stat="middleThirdTurnoversOpponent">+1</button>
-                </td>
-            </tr>
-	<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="defensiveThirdTurnoversMyTeam">-1</button>
-                    <span id="defensiveThirdTurnoversMyTeamCounter">0</span>
-                    <button class="increase" data-stat="defensiveThirdTurnoversMyTeam">+1</button>
-                </td>
-                <td><span id="defensiveThirdTurnoversMyTeamValue">0</span></td>
-                <td>Defensive Third Turnover</td>
-                <td><span id="defensiveThirdTurnoversOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="defensiveThirdTurnoversOpponent">-1</button>
-                    <span id="defensiveThirdTurnoversOpponentCounter">0</span>
-                    <button class="increase" data-stat="defensiveThirdTurnoversOpponent">+1</button>
-                </td>
-            </tr>
-	<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="crossLeftMyTeam">-1</button>
-                    <span id="crossLeftMyTeamCounter">0</span>
-                    <button class="increase" data-stat="crossLeftMyTeam">+1</button>
-                </td>
-                <td><span id="crossLeftMyTeamValue">0</span></td>
-                <td>Cross Left</td>
-                <td><span id="crossLeftOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="crossLeftOpponent">-1</button>
-                    <span id="crossLeftOpponentCounter">0</span>
-                    <button class="increase" data-stat="crossLeftOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="crossRightMyTeam">-1</button>
-                    <span id="crossRightMyTeamCounter">0</span>
-                    <button class="increase" data-stat="crossRightMyTeam">+1</button>
-                </td>
-                <td><span id="crossRightMyTeamValue">0</span></td>
-                <td>Cross Right</td>
-                <td><span id="crossRightOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="crossRightOpponent">-1</button>
-                    <span id="crossRightOpponentCounter">0</span>
-                    <button class="increase" data-stat="crossRightOpponent">+1</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="cornersMyTeam">-1</button>
-                    <span id="cornersMyTeamCounter">0</span>
-                    <button class="increase" data-stat="cornersMyTeam">+1</button>
-                </td>
-                <td><span id="cornersMyTeamValue">0</span></td>
-                <td>Corner</td>
-                <td><span id="cornersOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="cornersOpponent">-1</button>
-                    <span id="cornersOpponentCounter">0</span>
-                    <button class="increase" data-stat="cornersOpponent">+1</button>
-                </td>
-	</tr>
-		<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="foulMyTeam">-1</button>
-                    <span id="foulMyTeamCounter">0</span>
-                    <button class="increase" data-stat="foulMyTeam">+1</button>
-                </td>
-                <td><span id="foulMyTeamValue">0</span></td>
-                <td>Foul</td>
-                <td><span id="foulOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="foulOpponent">-1</button>
-                    <span id="foulOpponentCounter">0</span>
-                    <button class="increase" data-stat="foulOpponent">+1</button>
-                </td>
-           </tr>
-		<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="freekickMyTeam">-1</button>
-                    <span id="freekickMyTeamCounter">0</span>
-                    <button class="increase" data-stat="freekickMyTeam">+1</button>
-                </td>
-                <td><span id="freekickMyTeamValue">0</span></td>
-                <td>Free Kick</td>
-                <td><span id="freekickOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="freekickOpponent">-1</button>
-                    <span id="freekickOpponentCounter">0</span>
-                    <button class="increase" data-stat="freekickOpponent">+1</button>
-                </td>
-            </tr>
-		<tr>
-                <td class="button-container">
-                    <button class="decrease" data-stat="penaltyMyTeam">-1</button>
-                    <span id="penaltyMyTeamCounter">0</span>
-                    <button class="increase" data-stat="penaltyMyTeam">+1</button>
-                </td>
-                <td><span id="penaltyMyTeamValue">0</span></td>
-                <td>Penalty</td>
-                <td><span id="penaltyOpponentValue">0</span></td>
-                <td class="button-container">
-                    <button class="decrease" data-stat="penaltyOpponent">-1</button>
-                    <span id="penaltyOpponentCounter">0</span>
-                    <button class="increase" data-stat="penaltyOpponent">+1</button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-<div class="timeline">
-        <h3>Timeline</h3>
-        <ul id="timelineList"></ul>
-    </div>
+<div class="section">
+  <div class="clock" id="clock">00:00</div>
+  <div class="controls">
+    <button id="startStop">Start Match</button>
+    <button id="reset">Reset Match</button>
+    <button id="export">Export CSV</button>
+  </div>
+</div>
 
-<table>
+<div class="section">
+  <table>
     <thead>
-        <tr>
-            <th>Team</th>
-            <th>Time</th>
-            <th>Event</th>
-        </tr>
+      <tr>
+        <th>My</th>
+        <th>Stat</th>
+        <th>Opp</th>
+      </tr>
+    </thead>
+    <tbody id="statsBody"></tbody>
+  </table>
+</div>
+
+<div class="section timeline">
+  <h3>Timeline</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Event</th>
+      </tr>
     </thead>
     <tbody id="timelineBody"></tbody>
-</table>
+  </table>
+</div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let timer;
-        let minutes = 0;
-        let seconds = 0;
-        let running = false;
-        let timelineEntries = [];
+/* ---------------- STATE ---------------- */
 
-        const startStopButton = document.getElementById('startStopButton');
-        const resetButton = document.getElementById('resetButton');
-        const clockElement = document.getElementById('clock');
-        const timelineBody = document.getElementById('timelineBody');
-        const exportButton = document.getElementById('exportButton');
+let state = {
+  running: false,
+  minutes: 0,
+  seconds: 0,
+  stats: {},
+  timeline: [],
+  info: {}
+};
 
-        // Match details inputs
-        const myTeamInput = document.getElementById('myTeamInput');
-        const opponentInput = document.getElementById('opponentInput');
-	const dateInput = document.getElementById('matchDate');
-    	const timeInput = document.getElementById('matchTime');
-    	const venueInput = document.getElementById('venue');
-    	const typeInput = document.getElementById('matchType'); 
+/* ---------------- CONSTANTS ---------------- */
 
-        // Reset all stats, clock, and timeline
-        resetButton.addEventListener('click', () => {
-            clearInterval(timer);
-            minutes = 0;
-            seconds = 0;
-            running = false;
-            clockElement.textContent = "00:00";
+const STAT_LIST = [
+  "Goal",
+  "Shot",
+  "On Target",
+  "Corner",
+  "Foul"
+];
 
-            // Reset stats
-            const counters = document.querySelectorAll('[id$="Counter"]');
-            counters.forEach(counter => counter.textContent = "0");
-            const values = document.querySelectorAll('[id$="Value"]');
-            values.forEach(value => value.textContent = "0");
+/* ---------------- DOM ---------------- */
 
-            // Reset timeline
-            timelineEntries = [];
-            updateTimeline();
-        });
+const clockEl = document.getElementById("clock");
+const startStopBtn = document.getElementById("startStop");
+const resetBtn = document.getElementById("reset");
+const exportBtn = document.getElementById("export");
+const statsBody = document.getElementById("statsBody");
+const timelineBody = document.getElementById("timelineBody");
 
-        // Start/Stop button functionality
-        startStopButton.addEventListener('click', () => {
-            if (running) {
-                clearInterval(timer);
-                running = false;
-                startStopButton.textContent = 'Start Match';
-                logTimelineEvent('Match Stop');
-            } else {
-                timer = setInterval(updateClock, 1000);
-                running = true;
-                startStopButton.textContent = 'Stop Match';
-                logTimelineEvent('Match Start');
-            }
-        });
+const myTeamInput = document.getElementById("myTeam");
+const opponentInput = document.getElementById("opponent");
+const dateInput = document.getElementById("date");
+const venueInput = document.getElementById("venue");
 
-        // Update clock
-        function updateClock() {
-            seconds++;
-            if (seconds >= 60) {
-                seconds = 0;
-                minutes++;
-            }
-            clockElement.textContent = `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        }
+let timer = null;
 
-        document.querySelectorAll('.increase, .decrease').forEach(button => {
-    button.addEventListener('click', (e) => {
-        const stat = e.target.dataset.stat;
-        let counter = document.getElementById(stat + 'Counter');
-        let team = stat.includes('MyTeam') ? (myTeamInput.value || 'My Team') : (opponentInput.value || 'Opponent');
-        let action = e.target.classList.contains('increase') ? 1 : -1;
+/* ---------------- INIT ---------------- */
 
-        // Update the counter value and ensure it doesn't go below 0
-        counter.textContent = Math.max(0, parseInt(counter.textContent) + action);
-	updateStatDisplay(stat);
-        // Debugging: log the values to the console
-        console.log("Team:", team, "Stat:", stat, "Action:", action, "New Counter Value:", counter.textContent);
+STAT_LIST.forEach(stat => {
+  state.stats[stat] = { my: 0, opp: 0 };
+  const row = document.createElement("tr");
 
-        // Log the event to the timeline (adjusted)
-        logTimelineEvent(team, stat.replace(/([A-Z])/g, ' $1').trim().replace(/My Team|Opponent/, '').trim(), counter.textContent);
-    });
+  row.innerHTML = `
+    <td class="stat-buttons">
+      <button onclick="changeStat('${stat}','my',-1)">-</button>
+      <span id="${stat}-my">0</span>
+      <button onclick="changeStat('${stat}','my',1)">+</button>
+    </td>
+    <td>${stat}</td>
+    <td class="stat-buttons">
+      <button onclick="changeStat('${stat}','opp',-1)">-</button>
+      <span id="${stat}-opp">0</span>
+      <button onclick="changeStat('${stat}','opp',1)">+</button>
+    </td>
+  `;
+  statsBody.appendChild(row);
 });
 
-function logTimelineEvent(team, stat, value) {
-    // Debugging: log the parameters being passed
-    console.log("Logging Event - Team:", team, "Stat:", stat, "Value:", value);
+load();
 
-    const time = `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    let eventDescription = stat.charAt(0).toUpperCase() + stat.slice(1); // Capitalize first letter of the stat
-    const formattedEvent = `${eventDescription} (${value})`;
+/* ---------------- CLOCK ---------------- */
 
-    // Add event to timelineEntries array
-    timelineEntries.push({ team, time, event: formattedEvent });
-    updateTimeline();
+function tick() {
+  state.seconds++;
+  if (state.seconds >= 60) {
+    state.seconds = 0;
+    state.minutes++;
+  }
+  updateClock();
+  save();
 }
 
-// Function to update the timeline display
-function updateTimeline() {
-    if (!timelineBody) return; // Prevent errors if timelineBody is null
-    timelineBody.innerHTML = ''; // Clear the timeline before updating
-    timelineEntries.forEach(entry => {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${entry.team}</td><td>${entry.time}</td><td>${entry.event}</td>`;
-        timelineBody.appendChild(row);
-    });
+function updateClock() {
+  clockEl.textContent =
+    String(state.minutes).padStart(2,"0") + ":" +
+    String(state.seconds).padStart(2,"0");
 }
 
+/* ---------------- CONTROLS ---------------- */
 
+startStopBtn.onclick = () => {
+  state.running = !state.running;
+  startStopBtn.textContent = state.running ? "Stop Match" : "Start Match";
 
-        function updateStatDisplay(stat) {
-            const counter = document.getElementById(stat + 'Counter');
-            const value = document.getElementById(stat + 'Value');
-            value.textContent = counter.textContent;
-        }
+  if (state.running) {
+    timer = setInterval(tick, 1000);
+    log("Match Started");
+  } else {
+    clearInterval(timer);
+    log("Match Stopped");
+  }
+  save();
+};
 
-        // Add event to timeline
-        function logTimelineEvent(team, event, count) {
-                const time = document.getElementById('clock').textContent;
-                const formattedEvent = `${team} ${event} (${count})`;
-                timelineEntries.push({ team, time, event: formattedEvent });
-                updateTimeline();
-        }
+resetBtn.onclick = () => {
+  if (!confirm("Reset match?")) return;
+  localStorage.removeItem("matchState");
+  location.reload();
+};
 
-        // Update the timeline display
-        function updateTimeline() {
-            if (!timelineBody) return; // Prevent errors if timelineBody is null
-            timelineBody.innerHTML = ''; // Clear the timeline before updating
-            timelineEntries.forEach(entry => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${entry.team}</td><td>${entry.time}</td><td>${entry.event}</td>`;
-                timelineBody.appendChild(row);
-            });
-        }
+/* ---------------- STATS ---------------- */
 
-        // Function to convert table data to CSV
-        function tableToCSV() {
-        const rows = document.querySelectorAll('table tr');
-        let csvContent = "";
+function changeStat(stat, side, delta) {
+  state.stats[stat][side] = Math.max(0, state.stats[stat][side] + delta);
+  document.getElementById(`${stat}-${side}`).textContent = state.stats[stat][side];
+  log(`${side === "my" ? myTeamInput.value || "My Team" : opponentInput.value || "Opponent"} ${stat}`);
+  save();
+}
 
-        // Add match details as the first row
-        const matchDetailsRow = [
-            "My Team: " + (myTeamInput.value || "My Team"),
-            "Opponent: " + (opponentInput.value || "Opponent"),
-            "Date: " + (dateInput.value || "Today"),
-            "Time: " + (timeInput.value || "N/A"),
-            "Venue: " + (venueInput.value || "Home/Away"),
-            "Type: " + (typeInput.value || "League/Cup/Friendly")
-        ];
-        csvContent += matchDetailsRow.join(',') + "\n";  // Add match details
+/* ---------------- TIMELINE ---------------- */
 
-        // Loop through each row in the table
-        rows.forEach(row => {
-            const columns = row.querySelectorAll('td, th');
-            const rowData = Array.from(columns).map(column => column.textContent.trim());
-            csvContent += rowData.join(',') + "\n";  // Join row data with commas, add newline
-        });
+function log(text) {
+  const time = clockEl.textContent;
+  state.timeline.push({ time, text });
+  renderTimeline();
+}
 
-        return csvContent;
-    }
+function renderTimeline() {
+  timelineBody.innerHTML = "";
+  state.timeline.forEach(e => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${e.time}</td><td>${e.text}</td>`;
+    timelineBody.appendChild(row);
+  });
+}
 
-        // Function to trigger CSV download
-        function exportCSV() {
-            const csvContent = tableToCSV();
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'stats_data.csv';  // Filename for the exported CSV file
-            link.click();
-        }
+/* ---------------- STORAGE ---------------- */
 
-        // Event listener for the Export button
-        exportButton.addEventListener('click', exportCSV);
-    });
-    if ("serviceWorker" in navigator) {
- navigator.serviceWorker.register("./service-worker.js")
-    .then(() => console.log("Service Worker registered"))
-    .catch(err => console.error("Service Worker failed", err));
- }
+function save() {
+  state.info = {
+    myTeam: myTeamInput.value,
+    opponent: opponentInput.value,
+    date: dateInput.value,
+    venue: venueInput.value
+  };
+  localStorage.setItem("matchState", JSON.stringify(state));
+}
+
+function load() {
+  const saved = localStorage.getItem("matchState");
+  if (!saved) return;
+
+  state = JSON.parse(saved);
+
+  myTeamInput.value = state.info.myTeam || "";
+  opponentInput.value = state.info.opponent || "";
+  dateInput.value = state.info.date || "";
+  venueInput.value = state.info.venue || "";
+
+  Object.keys(state.stats).forEach(stat => {
+    document.getElementById(`${stat}-my`).textContent = state.stats[stat].my;
+    document.getElementById(`${stat}-opp`).textContent = state.stats[stat].opp;
+  });
+
+  updateClock();
+  renderTimeline();
+
+  if (state.running) {
+    startStopBtn.textContent = "Stop Match";
+    timer = setInterval(tick, 1000);
+  }
+}
+
+/* ---------------- EXPORT ---------------- */
+
+exportBtn.onclick = () => {
+  let csv = "Time,Event\n";
+  state.timeline.forEach(e => csv += `${e.time},${e.text}\n`);
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "match_stats.csv";
+  a.click();
+};
+
+/* ---------------- SERVICE WORKER ---------------- */
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
+}
 </script>
-
-
-
-
 
 </body>
 </html>
