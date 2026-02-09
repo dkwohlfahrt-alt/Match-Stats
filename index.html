@@ -47,6 +47,19 @@ button {
   text-align: center;
 }
 
+.scoreboard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.scoreboard span {
+  flex: 1;
+  text-align: center;
+}
+
 .badge {
   text-align: center;
   font-weight: bold;
@@ -92,9 +105,21 @@ th {
 </div>
 
 <div class="section">
+  <div class="scoreboard">
+    <span id="homeName">HOME</span>
+    <span id="score">0 - 0</span>
+    <span id="awayName">AWAY</span>
+  </div>
+</div>
+
+<div class="section">
   <div class="badge" id="phaseLabel">PRE MATCH</div>
   <div class="clock" id="clock">00:00</div>
   <button id="phaseButton" class="full">Start First Half</button>
+</div>
+
+<div class="section">
+  <button class="full" onclick="addOpponentGoal()">➕ Opponent Goal</button>
 </div>
 
 <div class="section">
@@ -150,6 +175,7 @@ function createMatch() {
     info: { myTeam: "", opponent: "" },
     phase: "PRE_MATCH",
     seconds: 0,
+    opponentGoals: 0,
     players: [],
     timeline: []
   };
@@ -173,7 +199,11 @@ const myTeamInput = document.getElementById("myTeam");
 const opponentInput = document.getElementById("opponent");
 const playerNameInput = document.getElementById("playerName");
 
-/* ---------- MATCH SELECTOR ---------- */
+const scoreEl = document.getElementById("score");
+const homeName = document.getElementById("homeName");
+const awayName = document.getElementById("awayName");
+
+/* ---------- MATCH SELECT ---------- */
 
 function refreshSelector() {
   matchSelector.innerHTML = "";
@@ -213,9 +243,10 @@ function loadMatch(id) {
   updatePhaseUI();
   renderLineup();
   renderTimeline();
+  updateScoreboard();
 
   if (timer) clearInterval(timer);
-  if (["FIRST_HALF", "SECOND_HALF"].includes(match.phase)) {
+  if (["FIRST_HALF","SECOND_HALF"].includes(match.phase)) {
     timer = setInterval(tick, 1000);
   }
 }
@@ -234,7 +265,7 @@ function updateClock() {
   clockEl.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
-/* ---------- PHASES ---------- */
+/* ---------- PHASE ---------- */
 
 phaseButton.onclick = () => {
   if (match.phase === "PRE_MATCH") startHalf("FIRST_HALF");
@@ -259,17 +290,6 @@ function endHalf(next) {
   log(next.replace("_"," "));
   updatePhaseUI();
   persist();
-}
-
-function updatePhaseUI() {
-  phaseLabel.textContent = match.phase.replace("_"," ");
-  phaseButton.textContent =
-    match.phase === "PRE_MATCH" ? "Start First Half" :
-    match.phase === "FIRST_HALF" ? "End First Half" :
-    match.phase === "HALF_TIME" ? "Start Second Half" :
-    match.phase === "SECOND_HALF" ? "End Match" :
-    "Match Complete";
-  phaseButton.disabled = match.phase === "FULL_TIME";
 }
 
 /* ---------- PLAYERS ---------- */
@@ -308,11 +328,33 @@ function togglePlayer(i) {
 }
 
 function addStat(i, stat) {
-  match.players[i].stats[stat]++;
-  log(`${match.players[i].name} ${stat}`);
+  const p = match.players[i];
+  p.stats[stat]++;
+  if (stat === "goals") updateScoreboard();
+  log(`${p.name} ${stat}`);
   renderLineup();
   persist();
 }
+
+/* ---------- OPPONENT GOALS ---------- */
+
+function addOpponentGoal() {
+  match.opponentGoals++;
+  log("Opponent goal");
+  updateScoreboard();
+  persist();
+}
+
+/* ---------- SCOREBOARD ---------- */
+
+function updateScoreboard() {
+  const ourGoals = match.players.reduce((t,p) => t + p.stats.goals, 0);
+  scoreEl.textContent = `${ourGoals} - ${match.opponentGoals}`;
+  homeName.textContent = match.info.myTeam || "HOME";
+  awayName.textContent = match.info.opponent || "AWAY";
+}
+
+/* ---------- MINUTES ---------- */
 
 function closeMinutes() {
   match.players.forEach(p => {
@@ -320,31 +362,6 @@ function closeMinutes() {
       p.minutes += Math.floor((match.seconds - p.lastOn) / 60);
       p.lastOn = match.seconds;
     }
-  });
-}
-
-/* ---------- RENDER ---------- */
-
-function renderLineup() {
-  lineupBody.innerHTML = "";
-  match.players.forEach((p,i) => {
-    const r = document.createElement("tr");
-    r.innerHTML = `
-      <td>${p.name}</td>
-      <td>${p.on ? "On" : "Off"}</td>
-      <td>${p.minutes}</td>
-      <td>${p.stats.goals}</td>
-      <td>${p.stats.assists}</td>
-      <td>${p.stats.shots}</td>
-      <td>${p.stats.tackles}</td>
-      <td class="actions">
-        <button onclick="togglePlayer(${i})">${p.on ? "Off" : "On"}</button>
-        <button onclick="addStat(${i},'goals')">⚽</button>
-        <button onclick="addStat(${i},'assists')">🅰️</button>
-        <button onclick="addStat(${i},'shots')">🎯</button>
-        <button onclick="addStat(${i},'tackles')">🛡️</button>
-      </td>`;
-    lineupBody.appendChild(r);
   });
 }
 
@@ -394,7 +411,6 @@ if (!matches.length) newMatch();
 else loadMatch(currentMatchId || matches[0].id);
 refreshSelector();
 
-/* ---------- SERVICE WORKER ---------- */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
 }
