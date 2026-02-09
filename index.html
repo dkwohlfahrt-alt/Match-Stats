@@ -45,10 +45,10 @@ button {
   margin: 10px 0;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+.badge {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 6px;
 }
 
 table {
@@ -66,12 +66,6 @@ th, td {
 th {
   background: #eee;
 }
-
-@media (max-width: 600px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>
 </head>
 
@@ -79,15 +73,20 @@ th {
 
 <h2>Match Stats</h2>
 
-<div class="section grid">
+<div class="section">
+  <select id="matchSelector"></select>
+  <button onclick="newMatch()">➕ New Match</button>
+</div>
+
+<div class="section">
   <input id="myTeam" placeholder="My Team">
   <input id="opponent" placeholder="Opponent">
 </div>
 
 <div class="section">
+  <div class="badge" id="phaseLabel">PRE MATCH</div>
   <div class="clock" id="clock">00:00</div>
-  <button id="startStop">Start Match</button>
-  <button id="reset">Reset Match</button>
+  <button id="phaseButton">Start First Half</button>
 </div>
 
 <div class="section">
@@ -121,185 +120,260 @@ th {
   </table>
 </div>
 
+<div class="section">
+  <button onclick="exportMinutes()">📤 Export Minutes CSV</button>
+</div>
+
 <script>
-/* ---------------- STATE ---------------- */
+/* ---------- STORAGE STRUCTURE ---------- */
 
-let state = {
-  running: false,
-  secondsElapsed: 0,
-  players: [],
-  timeline: [],
-  info: {}
-};
+let matches = JSON.parse(localStorage.getItem("matches") || "[]");
+let currentMatchId = localStorage.getItem("currentMatchId");
 
+/* ---------- MATCH TEMPLATE ---------- */
+
+function createMatch() {
+  return {
+    id: Date.now(),
+    info: { myTeam: "", opponent: "" },
+    phase: "PRE_MATCH",
+    secondsElapsed: 0,
+    players: [],
+    timeline: []
+  };
+}
+
+/* ---------- ACTIVE MATCH ---------- */
+
+let match = null;
 let timer = null;
 
-/* ---------------- DOM ---------------- */
+/* ---------- DOM ---------- */
 
 const clockEl = document.getElementById("clock");
-const startStopBtn = document.getElementById("startStop");
-const resetBtn = document.getElementById("reset");
+const phaseLabel = document.getElementById("phaseLabel");
+const phaseButton = document.getElementById("phaseButton");
 const lineupBody = document.getElementById("lineupBody");
 const timelineBody = document.getElementById("timelineBody");
+const matchSelector = document.getElementById("matchSelector");
 
 const myTeamInput = document.getElementById("myTeam");
 const opponentInput = document.getElementById("opponent");
 const playerNameInput = document.getElementById("playerName");
 
-/* ---------------- CLOCK ---------------- */
+/* ---------- MATCH SELECTION ---------- */
+
+function refreshMatchSelector() {
+  matchSelector.innerHTML = "";
+  matches.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = `${m.info.myTeam || "Match"} vs ${m.info.opponent || ""}`;
+    matchSelector.appendChild(opt);
+  });
+  matchSelector.value = currentMatchId;
+}
+
+matchSelector.onchange = () => {
+  loadMatch(matchSelector.value);
+};
+
+/* ---------- NEW MATCH ---------- */
+
+function newMatch() {
+  if (match && !confirm("Start a new match? Current match will be saved.")) return;
+  match = createMatch();
+  matches.push(match);
+  currentMatchId = match.id;
+  persist();
+  loadMatch(match.id);
+}
+
+/* ---------- LOAD ---------- */
+
+function loadMatch(id) {
+  match = matches.find(m => m.id == id);
+  if (!match) return;
+
+  currentMatchId = id;
+  persist();
+
+  myTeamInput.value = match.info.myTeam;
+  opponentInput.value = match.info.opponent;
+
+  updateClock();
+  updatePhaseUI();
+  renderLineup();
+  renderTimeline();
+
+  if (timer) clearInterval(timer);
+  if (match.phase === "FIRST_HALF" || match.phase === "SECOND_HALF") {
+    timer = setInterval(tick, 1000);
+  }
+}
+
+/* ---------- CLOCK ---------- */
 
 function tick() {
-  state.secondsElapsed++;
+  match.secondsElapsed++;
   updateClock();
-  save();
+  persist();
 }
 
 function updateClock() {
-  const m = Math.floor(state.secondsElapsed / 60);
-  const s = state.secondsElapsed % 60;
+  const m = Math.floor(match.secondsElapsed / 60);
+  const s = match.secondsElapsed % 60;
   clockEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-/* ---------------- MATCH CONTROL ---------------- */
+/* ---------- PHASE CONTROL ---------- */
 
-startStopBtn.onclick = () => {
-  state.running = !state.running;
-  startStopBtn.textContent = state.running ? "Stop Match" : "Start Match";
-
-  if (state.running) {
-    state.players.forEach(p => {
-      if (p.on) p.lastOnTime = state.secondsElapsed;
-    });
-    timer = setInterval(tick, 1000);
-    log("Match Started");
-  } else {
-    clearInterval(timer);
-    closeActiveMinutes();
-    log("Match Stopped");
-  }
-  save();
+phaseButton.onclick = () => {
+  if (match.phase === "PRE_MATCH") startHalf("FIRST_HALF");
+  else if (match.phase === "FIRST_HALF") endHalf("HALF_TIME");
+  else if (match.phase === "HALF_TIME") startHalf("SECOND_HALF");
+  else if (match.phase === "SECOND_HALF") endHalf("FULL_TIME");
 };
 
-resetBtn.onclick = () => {
-  if (!confirm("Reset match?")) return;
-  localStorage.removeItem("matchState");
-  location.reload();
-};
+function startHalf(phase) {
+  match.phase = phase;
+  match.players.forEach(p => {
+    if (p.on) p.lastOn = match.secondsElapsed;
+  });
+  timer = setInterval(tick, 1000);
+  log(`${phase.replace("_"," ")} started`);
+  updatePhaseUI();
+  persist();
+}
 
-/* ---------------- PLAYERS ---------------- */
+function endHalf(nextPhase) {
+  closeMinutes();
+  clearInterval(timer);
+  match.phase = nextPhase;
+  log(`${nextPhase.replace("_"," ")}`);
+  updatePhaseUI();
+  persist();
+}
+
+function updatePhaseUI() {
+  phaseLabel.textContent = match.phase.replace("_"," ");
+  phaseButton.textContent =
+    match.phase === "PRE_MATCH" ? "Start First Half" :
+    match.phase === "FIRST_HALF" ? "End First Half" :
+    match.phase === "HALF_TIME" ? "Start Second Half" :
+    match.phase === "SECOND_HALF" ? "End Match" :
+    "Match Complete";
+  phaseButton.disabled = match.phase === "FULL_TIME";
+}
+
+/* ---------- PLAYERS ---------- */
 
 function addPlayer() {
   const name = playerNameInput.value.trim();
   if (!name) return;
 
-  state.players.push({
+  match.players.push({
     name,
     on: true,
     minutes: 0,
-    lastOnTime: state.running ? state.secondsElapsed : null
+    lastOn: match.secondsElapsed
   });
 
-  log(`${name} added to lineup`);
+  log(`${name} added`);
   playerNameInput.value = "";
   renderLineup();
-  save();
+  persist();
 }
 
-function togglePlayer(index) {
-  const p = state.players[index];
-
+function togglePlayer(i) {
+  const p = match.players[i];
   if (p.on) {
-    // Sub off
-    p.minutes += Math.floor((state.secondsElapsed - p.lastOnTime) / 60);
+    p.minutes += Math.floor((match.secondsElapsed - p.lastOn) / 60);
     p.on = false;
-    p.lastOnTime = null;
     log(`${p.name} subbed off`);
   } else {
-    // Sub on
     p.on = true;
-    p.lastOnTime = state.secondsElapsed;
+    p.lastOn = match.secondsElapsed;
     log(`${p.name} subbed on`);
   }
-
   renderLineup();
-  save();
+  persist();
 }
 
-function closeActiveMinutes() {
-  state.players.forEach(p => {
-    if (p.on && p.lastOnTime !== null) {
-      p.minutes += Math.floor((state.secondsElapsed - p.lastOnTime) / 60);
-      p.lastOnTime = state.secondsElapsed;
+function closeMinutes() {
+  match.players.forEach(p => {
+    if (p.on) {
+      p.minutes += Math.floor((match.secondsElapsed - p.lastOn) / 60);
+      p.lastOn = match.secondsElapsed;
     }
   });
 }
 
-/* ---------------- RENDER ---------------- */
+/* ---------- RENDER ---------- */
 
 function renderLineup() {
   lineupBody.innerHTML = "";
-  state.players.forEach((p, i) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
+  match.players.forEach((p,i) => {
+    const r = document.createElement("tr");
+    r.innerHTML = `
       <td>${p.name}</td>
       <td>${p.on ? "On" : "Off"}</td>
       <td>${p.minutes}</td>
       <td><button onclick="togglePlayer(${i})">${p.on ? "Sub Off" : "Sub On"}</button></td>
     `;
-    lineupBody.appendChild(row);
+    lineupBody.appendChild(r);
   });
 }
 
-/* ---------------- TIMELINE ---------------- */
+/* ---------- TIMELINE ---------- */
 
 function log(text) {
-  const time = clockEl.textContent;
-  state.timeline.push({ time, text });
+  match.timeline.push({ time: clockEl.textContent, text });
   renderTimeline();
 }
 
 function renderTimeline() {
   timelineBody.innerHTML = "";
-  state.timeline.forEach(e => {
-    const row = document.createElement("tr");
-    row.innerHTML = `<td>${e.time}</td><td>${e.text}</td>`;
-    timelineBody.appendChild(row);
+  match.timeline.forEach(e => {
+    const r = document.createElement("tr");
+    r.innerHTML = `<td>${e.time}</td><td>${e.text}</td>`;
+    timelineBody.appendChild(r);
   });
 }
 
-/* ---------------- STORAGE ---------------- */
+/* ---------- EXPORT ---------- */
 
-function save() {
-  state.info = {
-    myTeam: myTeamInput.value,
-    opponent: opponentInput.value
-  };
-  localStorage.setItem("matchState", JSON.stringify(state));
+function exportMinutes() {
+  let csv = "Player,Minutes\n";
+  match.players.forEach(p => csv += `${p.name},${p.minutes}\n`);
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${match.info.myTeam || "match"}_minutes.csv`;
+  a.click();
 }
 
-function load() {
-  const saved = localStorage.getItem("matchState");
-  if (!saved) return;
+/* ---------- PERSIST ---------- */
 
-  state = JSON.parse(saved);
+function persist() {
+  match.info.myTeam = myTeamInput.value;
+  match.info.opponent = opponentInput.value;
 
-  myTeamInput.value = state.info.myTeam || "";
-  opponentInput.value = state.info.opponent || "";
-
-  updateClock();
-  renderLineup();
-  renderTimeline();
-
-  if (state.running) {
-    timer = setInterval(tick, 1000);
-    startStopBtn.textContent = "Stop Match";
-  }
+  localStorage.setItem("matches", JSON.stringify(matches));
+  localStorage.setItem("currentMatchId", currentMatchId);
 }
 
-load();
+/* ---------- INIT ---------- */
 
-/* ---------------- SERVICE WORKER ---------------- */
+if (!matches.length) {
+  newMatch();
+} else {
+  loadMatch(currentMatchId || matches[0].id);
+}
+refreshMatchSelector();
 
+/* ---------- SERVICE WORKER ---------- */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
 }
