@@ -1,134 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Match Stats Tracker</title>
+<meta charset="UTF-8">
+<title>Match Stats Tracker</title>
 
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#ffffff">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 12px;
-      background: #fafafa;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 12px;
+}
 
-    h2 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
+h2, h3 {
+  text-align: center;
+  margin: 8px 0;
+}
 
-    input, button {
-      font-size: 16px;
-      padding: 10px;
-    }
+.section {
+  background: white;
+  padding: 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+}
 
-    button {
-      min-height: 48px;
-      cursor: pointer;
-    }
+input, button, select {
+  font-size: 16px;
+  padding: 10px;
+}
 
-    .section {
-      background: white;
-      padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
+button {
+  min-height: 48px;
+  width: 100%;
+  margin-top: 6px;
+}
 
-    .match-details {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+.clock {
+  font-size: 32px;
+  text-align: center;
+  margin: 10px 0;
+}
 
-    .match-details input {
-      width: 100%;
-    }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 
-    .clock {
-      text-align: center;
-      font-size: 32px;
-      margin: 10px 0;
-    }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
 
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+th, td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  text-align: center;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
+th {
+  background: #eee;
+}
 
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-
-    th {
-      background: #f2f2f2;
-    }
-
-    .stat-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .timeline table {
-      font-size: 13px;
-    }
-
-    @media (max-width: 600px) {
-      .match-details {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 </head>
 
 <body>
 
 <h2>Match Stats</h2>
 
-<div class="section match-details">
+<div class="section grid">
   <input id="myTeam" placeholder="My Team">
   <input id="opponent" placeholder="Opponent">
-  <input id="date" type="date">
-  <input id="venue" placeholder="Venue">
 </div>
 
 <div class="section">
   <div class="clock" id="clock">00:00</div>
-  <div class="controls">
-    <button id="startStop">Start Match</button>
-    <button id="reset">Reset Match</button>
-    <button id="export">Export CSV</button>
-  </div>
+  <button id="startStop">Start Match</button>
+  <button id="reset">Reset Match</button>
 </div>
 
 <div class="section">
+  <h3>Lineup</h3>
+  <input id="playerName" placeholder="Player name">
+  <button onclick="addPlayer()">Add Player</button>
+
   <table>
     <thead>
       <tr>
-        <th>My</th>
-        <th>Stat</th>
-        <th>Opp</th>
+        <th>Player</th>
+        <th>Status</th>
+        <th>Minutes</th>
+        <th>Action</th>
       </tr>
     </thead>
-    <tbody id="statsBody"></tbody>
+    <tbody id="lineupBody"></tbody>
   </table>
 </div>
 
-<div class="section timeline">
+<div class="section">
   <h3>Timeline</h3>
   <table>
     <thead>
@@ -146,92 +126,55 @@
 
 let state = {
   running: false,
-  minutes: 0,
-  seconds: 0,
-  stats: {},
+  secondsElapsed: 0,
+  players: [],
   timeline: [],
   info: {}
 };
 
-/* ---------------- CONSTANTS ---------------- */
-
-const STAT_LIST = [
-  "Goal",
-  "Shot",
-  "On Target",
-  "Corner",
-  "Foul"
-];
+let timer = null;
 
 /* ---------------- DOM ---------------- */
 
 const clockEl = document.getElementById("clock");
 const startStopBtn = document.getElementById("startStop");
 const resetBtn = document.getElementById("reset");
-const exportBtn = document.getElementById("export");
-const statsBody = document.getElementById("statsBody");
+const lineupBody = document.getElementById("lineupBody");
 const timelineBody = document.getElementById("timelineBody");
 
 const myTeamInput = document.getElementById("myTeam");
 const opponentInput = document.getElementById("opponent");
-const dateInput = document.getElementById("date");
-const venueInput = document.getElementById("venue");
-
-let timer = null;
-
-/* ---------------- INIT ---------------- */
-
-STAT_LIST.forEach(stat => {
-  state.stats[stat] = { my: 0, opp: 0 };
-  const row = document.createElement("tr");
-
-  row.innerHTML = `
-    <td class="stat-buttons">
-      <button onclick="changeStat('${stat}','my',-1)">-</button>
-      <span id="${stat}-my">0</span>
-      <button onclick="changeStat('${stat}','my',1)">+</button>
-    </td>
-    <td>${stat}</td>
-    <td class="stat-buttons">
-      <button onclick="changeStat('${stat}','opp',-1)">-</button>
-      <span id="${stat}-opp">0</span>
-      <button onclick="changeStat('${stat}','opp',1)">+</button>
-    </td>
-  `;
-  statsBody.appendChild(row);
-});
-
-load();
+const playerNameInput = document.getElementById("playerName");
 
 /* ---------------- CLOCK ---------------- */
 
 function tick() {
-  state.seconds++;
-  if (state.seconds >= 60) {
-    state.seconds = 0;
-    state.minutes++;
-  }
+  state.secondsElapsed++;
   updateClock();
   save();
 }
 
 function updateClock() {
-  clockEl.textContent =
-    String(state.minutes).padStart(2,"0") + ":" +
-    String(state.seconds).padStart(2,"0");
+  const m = Math.floor(state.secondsElapsed / 60);
+  const s = state.secondsElapsed % 60;
+  clockEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-/* ---------------- CONTROLS ---------------- */
+/* ---------------- MATCH CONTROL ---------------- */
 
 startStopBtn.onclick = () => {
   state.running = !state.running;
   startStopBtn.textContent = state.running ? "Stop Match" : "Start Match";
 
   if (state.running) {
+    state.players.forEach(p => {
+      if (p.on) p.lastOnTime = state.secondsElapsed;
+    });
     timer = setInterval(tick, 1000);
     log("Match Started");
   } else {
     clearInterval(timer);
+    closeActiveMinutes();
     log("Match Stopped");
   }
   save();
@@ -243,13 +186,68 @@ resetBtn.onclick = () => {
   location.reload();
 };
 
-/* ---------------- STATS ---------------- */
+/* ---------------- PLAYERS ---------------- */
 
-function changeStat(stat, side, delta) {
-  state.stats[stat][side] = Math.max(0, state.stats[stat][side] + delta);
-  document.getElementById(`${stat}-${side}`).textContent = state.stats[stat][side];
-  log(`${side === "my" ? myTeamInput.value || "My Team" : opponentInput.value || "Opponent"} ${stat}`);
+function addPlayer() {
+  const name = playerNameInput.value.trim();
+  if (!name) return;
+
+  state.players.push({
+    name,
+    on: true,
+    minutes: 0,
+    lastOnTime: state.running ? state.secondsElapsed : null
+  });
+
+  log(`${name} added to lineup`);
+  playerNameInput.value = "";
+  renderLineup();
   save();
+}
+
+function togglePlayer(index) {
+  const p = state.players[index];
+
+  if (p.on) {
+    // Sub off
+    p.minutes += Math.floor((state.secondsElapsed - p.lastOnTime) / 60);
+    p.on = false;
+    p.lastOnTime = null;
+    log(`${p.name} subbed off`);
+  } else {
+    // Sub on
+    p.on = true;
+    p.lastOnTime = state.secondsElapsed;
+    log(`${p.name} subbed on`);
+  }
+
+  renderLineup();
+  save();
+}
+
+function closeActiveMinutes() {
+  state.players.forEach(p => {
+    if (p.on && p.lastOnTime !== null) {
+      p.minutes += Math.floor((state.secondsElapsed - p.lastOnTime) / 60);
+      p.lastOnTime = state.secondsElapsed;
+    }
+  });
+}
+
+/* ---------------- RENDER ---------------- */
+
+function renderLineup() {
+  lineupBody.innerHTML = "";
+  state.players.forEach((p, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.name}</td>
+      <td>${p.on ? "On" : "Off"}</td>
+      <td>${p.minutes}</td>
+      <td><button onclick="togglePlayer(${i})">${p.on ? "Sub Off" : "Sub On"}</button></td>
+    `;
+    lineupBody.appendChild(row);
+  });
 }
 
 /* ---------------- TIMELINE ---------------- */
@@ -274,9 +272,7 @@ function renderTimeline() {
 function save() {
   state.info = {
     myTeam: myTeamInput.value,
-    opponent: opponentInput.value,
-    date: dateInput.value,
-    venue: venueInput.value
+    opponent: opponentInput.value
   };
   localStorage.setItem("matchState", JSON.stringify(state));
 }
@@ -289,35 +285,18 @@ function load() {
 
   myTeamInput.value = state.info.myTeam || "";
   opponentInput.value = state.info.opponent || "";
-  dateInput.value = state.info.date || "";
-  venueInput.value = state.info.venue || "";
-
-  Object.keys(state.stats).forEach(stat => {
-    document.getElementById(`${stat}-my`).textContent = state.stats[stat].my;
-    document.getElementById(`${stat}-opp`).textContent = state.stats[stat].opp;
-  });
 
   updateClock();
+  renderLineup();
   renderTimeline();
 
   if (state.running) {
-    startStopBtn.textContent = "Stop Match";
     timer = setInterval(tick, 1000);
+    startStopBtn.textContent = "Stop Match";
   }
 }
 
-/* ---------------- EXPORT ---------------- */
-
-exportBtn.onclick = () => {
-  let csv = "Time,Event\n";
-  state.timeline.forEach(e => csv += `${e.time},${e.text}\n`);
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "match_stats.csv";
-  a.click();
-};
+load();
 
 /* ---------------- SERVICE WORKER ---------------- */
 
